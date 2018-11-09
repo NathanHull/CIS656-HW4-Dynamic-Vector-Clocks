@@ -1,6 +1,6 @@
-package edu.gvsu.cis.cis656.message;
+package message;
 
-import edu.gvsu.cis.cis656.clock.VectorClock;
+import clock.VectorClock;
 import org.json.JSONObject;
 
 import java.io.IOException;

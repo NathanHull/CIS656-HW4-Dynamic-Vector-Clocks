@@ -1,4 +1,4 @@
-package edu.gvsu.cis.cis656.clock;
+package clock;
 
 import java.util.Comparator;
 

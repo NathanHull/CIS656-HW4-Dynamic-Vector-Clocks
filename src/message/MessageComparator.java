@@ -1,4 +1,4 @@
-package edu.gvsu.cis.cis656.message;
+package message;
 
 import java.util.Comparator;
 

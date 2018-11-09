@@ -1,4 +1,4 @@
-package edu.gvsu.cis.cis656.queue;
+package queue;
 
 import java.util.Comparator;
 import java.util.LinkedList;
