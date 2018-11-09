@@ -86,6 +86,8 @@ public class VectorClock implements Clock {
 
     @Override
     public int getTime(int p) {
+        if (!this.clock.containsKey(p))
+            return -1;
         return clock.get(p);
     }
 

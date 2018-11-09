@@ -1,8 +1,8 @@
-package edu.gvsu.cis.cis656.chat;
+package test;
 
-import edu.gvsu.cis.cis656.clock.VectorClock;
-import edu.gvsu.cis.cis656.clock.VectorClockComparator;
-import edu.gvsu.cis.cis656.queue.PriorityQueue;
+import clock.VectorClock;
+import clock.VectorClockComparator;
+import queue.PriorityQueue;
 import org.junit.Assert;
 import org.junit.Test;
 
