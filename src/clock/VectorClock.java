@@ -2,22 +2,28 @@ package clock;
 
 import java.util.Hashtable;
 import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Collections;
+
+import org.json.JSONObject;
 
 public class VectorClock implements Clock {
 
 
-    protected Map<Integer,Integer> clock = new Hashtable<Integer,Integer>();
+    protected Map<String,Integer> clock = new Hashtable<String,Integer>();
 
 
     @Override
     public void update(Clock other) {
-        for (Integer key : ((VectorClock) other).clock.keySet()) {
-            int thisTime = this.getTime(key);
-            int otherTime = other.getTime(key);
+        for (String key : ((VectorClock) other).clock.keySet()) {
+            int keyInt = Integer.parseInt(key);
+            int thisTime = this.getTime(keyInt);
+            int otherTime = other.getTime(keyInt);
             // Check this has that process on its clock
             if (thisTime != -1) {
                 // Only replace the value if its higher
-                if (otherTime < thisTime) {
+                if (otherTime > thisTime) {
                     this.clock.put(key, otherTime);
                 }
             // Otherwise, just add the new process and time
@@ -37,14 +43,14 @@ public class VectorClock implements Clock {
     @Override
     public void tick(Integer pid) {
         if (pid == null) {
-            // Iterate the (one) timestamp in the clock
-            for (Integer key : this.clock.keySet()) {
+            // This is Lamport, iterate the one timestamp in the clock
+            for (String key : this.clock.keySet()) {
                 this.clock.put(key, this.clock.get(key) + 1);
             }
         }
         else {
-            if (this.clock.containsKey(pid)) {
-                this.clock.put(pid, this.clock.get(pid) + 1);
+            if (this.clock.containsKey(""+pid)) {
+                this.clock.put(""+pid, this.clock.get(""+pid) + 1);
             }
         }
     }
@@ -60,40 +66,45 @@ public class VectorClock implements Clock {
 
 
     public String toString() {
-        StringBuilder sb = new StringBuilder();
-        for (Integer key : this.clock.keySet()) {
-            sb.append(key);
-            sb.append(":");
-            sb.append(this.clock.get(key));
-            sb.append(",");
+        List<String> sortedKeys = new ArrayList<>(this.clock.keySet());
+        Collections.sort(sortedKeys);
+
+        JSONObject obj = new JSONObject();
+        
+        for (String key : sortedKeys) {
+            obj.put(key, this.getTime(Integer.parseInt(key)));
         }
         
-        return sb.toString();
+        return obj.toString();
     }
 
 
     @Override
     public void setClockFromString(String clock) {
-        String[] timestamps = clock.trim().split(",");
-        for (String timestamp : timestamps) {
-            String[] keyVal = timestamp.trim().split(":");
-            if (keyVal.length == 2) {
-                this.clock.put(Integer.parseInt(keyVal[0]), Integer.parseInt(keyVal[1]));
+        Map<String, Integer> temp = new Hashtable<>();
+        JSONObject obj = new JSONObject(clock);
+
+        for (String key : obj.keySet()) {
+            try {
+                temp.put(key, obj.getInt(key));
+            } catch (org.json.JSONException e) {
+                return;
             }
         }
+        this.clock = temp;
     }
 
 
     @Override
     public int getTime(int p) {
-        if (!this.clock.containsKey(p))
+        if (!this.clock.containsKey(""+p))
             return -1;
-        return clock.get(p);
+        return clock.get(""+p);
     }
 
 
     @Override
     public void addProcess(int p, int c) {
-        clock.put(p, c);
+        clock.put(""+p, c);
     }
 }
