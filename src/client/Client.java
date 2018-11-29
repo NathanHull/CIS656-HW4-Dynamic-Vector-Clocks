@@ -4,7 +4,8 @@ import java.lang.Runnable;
 
 import java.io.IOException;
 import java.net.*;
-import java.util.Scanner;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.util.Vector;
 
 import message.Message;
@@ -27,15 +28,6 @@ public class Client {
 		}
 
 		String userName = args[0];
-
-		InetAddress clientAddress = null;
-		try {
-			clientAddress = InetAddress.getLocalHost();
-		} catch (UnknownHostException e) {
-			System.err.println("Unknown client host");
-			System.exit(1);
-		}
-		int clientPort = Integer.parseInt(args[1]);
 
 		InetAddress serverAddress = null;
 		try {
@@ -61,9 +53,9 @@ public class Client {
 
 		final DatagramSocket socket = tempSocket;
 
-
+		
+		// Registration with server
 		Message.sendMessage(registerMessage, socket, serverAddress, serverPort);
-
 		Message registerReceipt = Message.receiveMessage(socket);
 
 		System.out.println("==== FROM SERVER ====");
@@ -73,13 +65,13 @@ public class Client {
 		int pid = 0;
 
 		if (registerReceipt.type == MessageTypes.ERROR) {
+			System.err.println("Error registering with server");
 			System.exit(1);
 		} else if (registerReceipt.type == MessageTypes.ACK) {
-			System.out.println("Register receipt: " + registerReceipt.toString());
 			pid = registerReceipt.pid;
-			clock.setClock(registerReceipt.ts);
+			clock.setClockFromString("{\"" + pid + "\":0}");
 		} else {
-			System.err.println("Server error");
+			System.err.println("Ambiguous server error");
 			System.exit(1);
 		}
 
@@ -91,27 +83,40 @@ public class Client {
 		ListenRunnable runnable = new ListenRunnable(socket, clock);
 		Thread listenThread = new Thread(runnable);
 		listenThread.start();
-		Scanner scanner = new Scanner(System.in);
+		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 
 		// Shutdown hook for socket and thread
 		Runtime.getRuntime().addShutdownHook(new Thread() {
 			public void run() {
 				socket.close();
-				scanner.close();
-				System.exit(0);
+				try {
+					br.close();
+				} catch (IOException e) {
+				}
 			}
 		});
 
+		String text = "";
+		System.out.println("Type quit to exit");
 		while (true) {
 			System.out.println("Message:");
-			String text = scanner.nextLine();
+			try {
+				while (!br.ready()) {
+					Thread.sleep(20);
+				}
+				text = br.readLine();
+			} catch (IOException e) {
+				System.err.println("Read error");
+				continue;
+			} catch (InterruptedException e) {
+				break;
+			}
+			if (text.equals("quit"))
+				System.exit(0);
 			clock.tick(pid);
 			Message message = new Message(MessageTypes.CHAT_MSG, userName, pid, clock, text);
 			Message.sendMessage(message, socket, serverAddress, serverPort);
 			System.out.println();
-
-			if (Thread.interrupted())
-				break;
 		}
 	}
 }
@@ -130,27 +135,47 @@ class ListenRunnable implements Runnable {
 
 
 	public void run() {
-		try {
-			System.out.println("Listening on " + InetAddress.getLocalHost() + ":" + this.socket.getLocalPort());
-		} catch (UnknownHostException e) {
-			System.out.println("Listening on unknown host");
-		}
 		PriorityQueue<Message> messageQueue = new PriorityQueue<>(new MessageComparator());
 
 		try {
-			while (!Thread.interrupted()) {
+			while (true) {
 				Message message = Message.receiveMessage(this.socket);
 				if (message == null)
-					throw new SocketException("Interuppted");
+					throw new SocketException("Interrupted");
 				messageQueue.add(message);
-				message = messageQueue.poll();
-				clock.update(message.ts);
+				message = messageQueue.peek();
 
-				System.out.println("\n==== FROM SERVER ====");
-				System.out.println(message.sender + " " + message.ts.toString() + ": " + message.message);
-				System.out.println();
-				System.out.println("Message:");
+				while (message != null) {
+					// Queue means it's the smallest clock,
+					// but needs to fulfill the other condition
+					boolean isNext = false;
+
+					// Is first message from that process
+					if (clock.getTime(message.pid) == -1 && message.ts.getTime(message.pid) == 1) {
+						isNext = true;
+					}
+					// Is next expected message from that process
+					else if (message.ts.getTime(message.pid) == clock.getTime(message.pid) + 1) {
+						isNext = true;
+					}
+					
+					if (isNext) {
+						clock.update(message.ts);
+
+						System.out.println("\n==== FROM SERVER ====");
+						System.out.println(message.sender + " " + message.ts.toString() + ": " + message.message);
+						System.out.println();
+						System.out.println("Message:");
+
+						messageQueue.poll();
+						message = messageQueue.peek();
+					}
+					else {
+						message = null;
+					}
+				}
 			}
+		
 		} catch (SocketException e) {
 			System.out.println("Exiting listener thread");
 			return;
