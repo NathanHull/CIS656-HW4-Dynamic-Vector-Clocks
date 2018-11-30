@@ -144,12 +144,10 @@ class ListenRunnable implements Runnable {
 				Message message = Message.receiveMessage(this.socket);
 				if (message == null)
 					throw new SocketException("Interrupted");
-				System.out.println("Recv and adding message: " + message.toString());
 				messageQueue.add(message);
 				message = messageQueue.peek();
 
 				while (message != null) {
-					System.out.println("CHECKING " + message.toString());
 					// Queue means it's the smallest clock,
 					// but needs to fulfill the other condition
 					boolean isNext = false;
