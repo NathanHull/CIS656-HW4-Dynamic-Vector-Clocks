@@ -8,6 +8,8 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.Vector;
 
+import org.json.JSONObject;
+
 import message.Message;
 import message.MessageTypes;
 import message.MessageComparator;
@@ -157,6 +159,14 @@ class ListenRunnable implements Runnable {
 					// Is next expected message from that process
 					else if (message.ts.getTime(message.pid) == clock.getTime(message.pid) + 1) {
 						isNext = true;
+					}
+
+					JSONObject jobject = new JSONObject(message.ts.toString());
+					for (String key : jobject.keySet()) {
+						if (!key.equals(message.pid)) {
+							if (jobject.getInt(key) < clock.getTime(Integer.parseInt(key)))
+								isNext = false;
+						}
 					}
 					
 					if (isNext) {
