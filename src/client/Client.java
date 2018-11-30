@@ -144,10 +144,12 @@ class ListenRunnable implements Runnable {
 				Message message = Message.receiveMessage(this.socket);
 				if (message == null)
 					throw new SocketException("Interrupted");
+				System.out.println("Recv and adding message: " + message.toString());
 				messageQueue.add(message);
 				message = messageQueue.peek();
 
 				while (message != null) {
+					System.out.println("CHECKING " + message.toString());
 					// Queue means it's the smallest clock,
 					// but needs to fulfill the other condition
 					boolean isNext = false;
@@ -161,11 +163,17 @@ class ListenRunnable implements Runnable {
 						isNext = true;
 					}
 
-					JSONObject jobject = new JSONObject(message.ts.toString());
-					for (String key : jobject.keySet()) {
-						if (!key.equals(message.pid)) {
-							if (jobject.getInt(key) < clock.getTime(Integer.parseInt(key)))
-								isNext = false;
+					// Parse through current clock, ensure there is no expected
+					// message from any process before this one
+					if (isNext) {
+						JSONObject jobject = new JSONObject(message.ts.toString());
+						for (String key : jobject.keySet()) {
+							if (!key.equals(message.pid)) {
+								if (jobject.getInt(key) < clock.getTime(Integer.parseInt(key)))
+									isNext = false;
+								else if (jobject.getInt(key) > 1 && clock.getTime(Integer.parseInt(key)) == -1)
+									isNext = false; 
+							}
 						}
 					}
 					
